@@ -1,6 +1,7 @@
 package company.vk.edu.distrib.compute.aldor7705.handler;
 
 import com.sun.net.httpserver.HttpExchange;
+import company.vk.edu.distrib.compute.AuditEvent;
 import company.vk.edu.distrib.compute.Dao;
 import company.vk.edu.distrib.compute.aldor7705.exceptions.MethodNotAllowedException;
 import org.slf4j.Logger;
@@ -13,6 +14,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.function.Consumer;
 
 public class EntityHandler extends BaseHttpHandler {
     private static final Logger log = LoggerFactory.getLogger(EntityHandler.class);
@@ -20,19 +22,23 @@ public class EntityHandler extends BaseHttpHandler {
     private final List<Integer> clusterPorts;
     private final int myPort;
     private final Dao<byte[]> dao;
+    private final Consumer<AuditEvent> auditSink;
 
-    public EntityHandler(Dao<byte[]> dao, int myPort, List<Integer> clusterPorts) {
+    public EntityHandler(Dao<byte[]> dao, int myPort, List<Integer> clusterPorts, Consumer<AuditEvent> auditSink) {
         super();
         this.dao = dao;
         this.myPort = myPort;
         this.clusterPorts = clusterPorts;
+        this.auditSink = auditSink;
     }
 
     @Override
     protected void handleRequest(HttpExchange exchange) throws IOException {
+        long requestTimestamp = System.currentTimeMillis();
         String method = exchange.getRequestMethod();
         String query = exchange.getRequestURI().getQuery();
         String id = getIdFromQuery(query);
+        auditSink.accept(new AuditEvent(method, id, requestTimestamp));
 
         byte[] requestBody = null;
         if ("PUT".equals(method)) {
